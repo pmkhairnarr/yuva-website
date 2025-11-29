@@ -1,0 +1,55 @@
+name: Build and Deploy Yuva Website
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'data/**'
+      - 'config/**' 
+      - 'images/**'
+  workflow_dispatch:
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        
+    - name: Clone MCP Server
+      run: |
+        git clone https://github.com/pmkhairnarr/spreadsheet-website-builder-mcp.git mcp-server
+        cd mcp-server
+        npm install
+        
+    - name: Build Youth Website
+      run: |
+        cd mcp-server
+        node -e "
+        import SpreadsheetDataReader from './src/SpreadsheetDataReader.js';
+        import WebsiteGenerator from './src/WebsiteGenerator.js';
+        
+        const reader = new SpreadsheetDataReader();
+        const generator = new WebsiteGenerator('./website-output');
+        
+        const data = await reader.readSpreadsheet('../data/yuva-programs.xlsx');
+        
+        await generator.generateWebsite(data, {
+          title: 'Yuva - Empowering Tomorrow\'s Leaders',
+          theme: 'youth',
+          description: 'Youth organization website for programs, events, and community engagement'
+        });
+        "
+        
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./mcp-server/website-output
+        publish_branch: gh-pages
